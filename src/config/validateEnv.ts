@@ -1,3 +1,6 @@
+// validateEnv.ts
+// Loads environment variables, validates required variables, and throws an error if any are missing.
+
 import dotenv from 'dotenv';
 
 dotenv.config();
