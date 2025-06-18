@@ -1,16 +1,18 @@
 // chat.controller.ts
-// Handles incoming requests for chat-related endpoints and delegates business logic to the service layer.
+// Handles chat API requests and responses.
 
 import { Request, Response } from 'express';
-import { getChatHistoryService, sendMessageService } from './chat.service';
+import { getChatResponse } from './chat.service';
+import { ChatRequest, ChatResponse } from './chat.types';
 
-export const getChatHistory = async (req: Request, res: Response) => {
-  const history = await getChatHistoryService();
-  res.json(history);
-};
-
-export const sendMessage = async (req: Request, res: Response) => {
-  const { message } = req.body;
-  const response = await sendMessageService(message);
+/**
+ * POST /api/chat
+ * Receives a prompt and returns an AI response.
+ */
+export const chatHandler = async (req: Request, res: Response) => {
+  const { prompt } = req.body as ChatRequest;
+  const response: ChatResponse = {
+    response: await getChatResponse(prompt),
+  };
   res.json(response);
 }; 

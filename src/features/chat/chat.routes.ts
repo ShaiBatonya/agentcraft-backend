@@ -1,15 +1,12 @@
 // chat.routes.ts
-// Defines all chat-related API routes and attaches them to an Express router.
+// Express router for chat feature endpoints.
 
 import { Router } from 'express';
-import { getChatHistory, sendMessage } from './chat.controller';
+import { chatHandler } from './chat.controller';
 
 const router = Router();
 
-// GET /chat/history - Get chat history
-router.get('/chat/history', getChatHistory);
-
-// POST /chat/message - Send a new chat message
-router.post('/chat/message', sendMessage);
+// POST /api/chat - Get AI chat response
+router.post('/api/chat', chatHandler);
 
 export default router; 

@@ -1,3 +1,6 @@
+// errorHandler.ts
+// Express middleware for centralized error handling.
+
 import { Request, Response, NextFunction } from 'express';
 
 export function errorHandler(

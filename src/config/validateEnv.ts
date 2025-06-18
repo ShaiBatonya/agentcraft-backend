@@ -1,19 +1,21 @@
 // validateEnv.ts
-// Loads environment variables, validates required variables, and throws an error if any are missing.
+// Loads and validates environment variables using Zod. Throws if any required variable is missing or invalid.
 
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
 dotenv.config();
 
-const REQUIRED_ENV_VARS = ['MONGODB_URI', 'PORT'];
+const envSchema = z.object({
+  MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
+  PORT: z.string().min(1, 'PORT is required'),
+});
 
-for (const varName of REQUIRED_ENV_VARS) {
-  if (!process.env[varName]) {
-    throw new Error(`Missing required environment variable: ${varName}`);
-  }
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
+  process.exit(1);
 }
 
-export const env = {
-  MONGODB_URI: process.env.MONGODB_URI as string,
-  PORT: process.env.PORT as string,
-}; 
+export const env = parsed.data; 
