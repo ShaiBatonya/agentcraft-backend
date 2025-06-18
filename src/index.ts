@@ -1,5 +1,4 @@
 // Main entry point for the Express app. Sets up middleware, connects to MongoDB, and loads feature routes.
-import 'express-async-errors';
 import express from 'express';
 import { connectDB } from './config/db.js';
 import { env } from './config/validateEnv.js';
@@ -12,7 +11,9 @@ const app = express();
 app.use(express.json());
 
 // Health check endpoint
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', function(_req, res) {
+  res.json({ status: 'ok' });
+});
 
 // Feature routes
 app.use(chatRouter);
