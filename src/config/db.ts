@@ -2,7 +2,7 @@
 // Connects to MongoDB using Mongoose. Exits the process if connection fails.
 
 import mongoose from 'mongoose';
-import { env } from './validateEnv';
+import { env } from './validateEnv.js';
 
 export const connectDB = async () => {
   try {

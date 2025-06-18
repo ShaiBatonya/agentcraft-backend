@@ -1,13 +1,11 @@
-// index.ts
 // Main entry point for the Express app. Sets up middleware, connects to MongoDB, and loads feature routes.
-
 import 'express-async-errors';
 import express from 'express';
-import { connectDB } from './config/db';
-import { env } from './config/validateEnv';
-import chatRouter from './features/chat/chat.routes';
-import { errorHandler } from './middlewares/errorHandler';
-import { notFound } from './middlewares/notFound';
+import { connectDB } from './config/db.js';
+import { env } from './config/validateEnv.js';
+import chatRouter from './features/chat/chat.routes.js';
+import { errorHandler } from './middlewares/errorHandler.js';
+import { notFound } from './middlewares/notFound.js';
 
 const app = express();
 

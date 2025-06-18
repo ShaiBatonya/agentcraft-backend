@@ -2,8 +2,8 @@
 // Handles chat API requests and responses.
 
 import { Request, Response } from 'express';
-import { getChatResponse } from './chat.service';
-import { ChatRequest, ChatResponse } from './chat.types';
+import { getChatResponse } from './chat.service.js';
+import { ChatRequest, ChatResponse } from './chat.types.js';
 
 /**
  * POST /api/chat

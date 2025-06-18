@@ -2,7 +2,7 @@
 // Express router for chat feature endpoints.
 
 import { Router } from 'express';
-import { chatHandler } from './chat.controller';
+import { chatHandler } from './chat.controller.js';
 
 const router = Router();
 
