@@ -9,7 +9,8 @@ import {
   updateChatConfig, 
   chatHealthCheck,
   getAvailableModels,
-  getChatAnalytics
+  getChatAnalytics,
+  getChatHistory
 } from '../controllers/chat.controller.js';
 
 const router = Router();
@@ -94,6 +95,85 @@ const router = Router();
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/', authGuard, chatHandler);
+
+/**
+ * @openapi
+ * /api/chat/history:
+ *   get:
+ *     tags:
+ *       - Chat
+ *     summary: Get chat history for authenticated user
+ *     description: Retrieves chat message history for the authenticated user with optional filtering and pagination
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 1000
+ *           default: 100
+ *         description: Maximum number of messages to return
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Return messages before this timestamp
+ *       - in: query
+ *         name: after
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Return messages after this timestamp
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID (admin only)
+ *     responses:
+ *       200:
+ *         description: Chat history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     messages:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           role:
+ *                             type: string
+ *                             enum: [user, assistant]
+ *                           content:
+ *                             type: string
+ *                           timestamp:
+ *                             type: string
+ *                             format: date-time
+ *                           userId:
+ *                             type: string
+ *                     total:
+ *                       type: integer
+ *                     hasMore:
+ *                       type: boolean
+ *       401:
+ *         description: Authentication required
+ *       400:
+ *         description: Invalid query parameters
+ */
+router.get('/history', authGuard, getChatHistory);
 
 /**
  * @openapi

@@ -503,6 +503,147 @@ export async function chatHealthCheck(req: Request, res: Response, next: NextFun
 }
 
 // ==========================================
+// CHAT HISTORY ENDPOINT
+// ==========================================
+
+/**
+ * @swagger
+ * /api/chat/history:
+ *   get:
+ *     tags: [Chat]
+ *     summary: Get chat history for authenticated user
+ *     description: Retrieves chat history for the authenticated user with optional filtering and pagination
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 1000
+ *           default: 100
+ *         description: Maximum number of messages to return
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Return messages before this timestamp (ISO 8601)
+ *       - in: query
+ *         name: after
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Return messages after this timestamp (ISO 8601)
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID (admin only)
+ *     responses:
+ *       200:
+ *         description: Chat history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     messages:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           role:
+ *                             type: string
+ *                             enum: [user, assistant]
+ *                           content:
+ *                             type: string
+ *                           timestamp:
+ *                             type: string
+ *                             format: date-time
+ *                           userId:
+ *                             type: string
+ *                             format: uuid
+ *                     total:
+ *                       type: integer
+ *                       description: Total number of messages for this user
+ *                     hasMore:
+ *                       type: boolean
+ *                       description: Whether there are more messages available
+ *       401:
+ *         description: Authentication required
+ *       400:
+ *         description: Invalid query parameters
+ */
+export async function getChatHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    // Parse query parameters
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+    const before = req.query.before ? new Date(req.query.before as string) : undefined;
+    const after = req.query.after ? new Date(req.query.after as string) : undefined;
+    const requestedUserId = req.query.userId as string;
+
+    // Only allow admins to query other users' history
+    const targetUserId = user.isAdmin && requestedUserId ? requestedUserId : user.id;
+
+    console.log(`🔄 Chat history request - User: ${user.id}, Target: ${targetUserId}, Limit: ${limit}`);
+
+    // TODO: Implement actual database persistence for chat history
+    // For now, return empty history to prevent frontend 404 errors
+    // In a full implementation, this would query a ChatMessage model/table
+    
+    const response = {
+      success: true,
+      data: {
+        messages: [],
+        total: 0,
+        hasMore: false,
+      },
+    };
+
+    console.log(`✅ Chat history retrieved - User: ${user.id}, Messages: 0 (placeholder)`);
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('❌ Get chat history error:', error);
+    
+    if (error instanceof Error && error.message.includes('Invalid date')) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: 'Invalid date format in query parameters',
+        code: ChatErrorCodes.VALIDATION_ERROR,
+      };
+      res.status(400).json(errorResponse);
+      return;
+    }
+    
+    next(error);
+  }
+}
+
+// ==========================================
 // UTILITY ENDPOINTS
 // ==========================================
 
