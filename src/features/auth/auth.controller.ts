@@ -15,29 +15,34 @@ export const handleGoogleCallback = async (
   try {
     // User should be attached by Passport
     if (!req.user) {
-      res.redirect(`${env.CLIENT_URL}/?error=authentication_failed`);
+      res.redirect(`${env.CLIENT_URL}/auth/callback?error=authentication_failed`);
       return;
     }
 
     // Get full user data
     const user = await authService.findUserById(req.user.id);
     if (!user) {
-      res.redirect(`${env.CLIENT_URL}/?error=user_not_found`);
+      res.redirect(`${env.CLIENT_URL}/auth/callback?error=user_not_found`);
       return;
     }
 
     // Generate JWT token
     const token = authService.generateToken(user);
+    console.log('✅ OAuth Callback: Generated JWT token, length:', token.length);
 
     // Set secure cookie
     const cookieOptions = authService.getCookieOptions();
+    console.log('✅ OAuth Callback: Cookie options:', cookieOptions);
+    console.log('✅ OAuth Callback: Setting cookie for domain:', req.get('host'));
+    
     res.cookie('token', token, cookieOptions);
 
-    // Redirect to frontend chat page
-    res.redirect(`${env.CLIENT_URL}/chat`);
+    console.log('✅ OAuth Callback: Redirecting to:', `${env.CLIENT_URL}/auth/callback`);
+    // Redirect to frontend auth callback page for proper handling
+    res.redirect(`${env.CLIENT_URL}/auth/callback`);
   } catch (error) {
     console.error('Google callback error:', error);
-    res.redirect(`${env.CLIENT_URL}/?error=server_error`);
+    res.redirect(`${env.CLIENT_URL}/auth/callback?error=server_error`);
   }
 };
 
@@ -57,9 +62,38 @@ export const getCurrentUser = async (
       return;
     }
 
+    console.log('🔍 Auth Controller: Request user ID:', req.user.id);
+    
+    // Get fresh user data and properly format it
+    const user = await authService.findUserById(req.user.id);
+    if (!user) {
+      console.log('❌ Auth Controller: User not found in database');
+      res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+      return;
+    }
+
+    console.log('✅ Auth Controller: Raw user from DB:', {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      googleId: user.googleId,
+      avatar: user.avatar
+    });
+
+    // Transform user to proper format with all required fields
+    const authenticatedUser = authService.toAuthenticatedUser(user);
+    
+    console.log('✅ Auth Controller: Transformed user:', authenticatedUser);
+
     res.json({
       success: true,
-      user: req.user,
+      data: authenticatedUser, // Use 'data' to match ApiResponse<User> format
+      message: 'User retrieved successfully',
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Get current user error:', error);

@@ -13,10 +13,14 @@ export const authGuard = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    console.log('🔍 AuthGuard: Checking authentication');
+    console.log('🔍 AuthGuard: Available cookies:', Object.keys(req.cookies || {}));
+    
     // Get token from cookie
     const token = req.cookies?.token;
 
     if (!token) {
+      console.log('❌ AuthGuard: No token found in cookies');
       res.status(401).json({
         success: false,
         message: 'Access denied. No authentication token provided.',
@@ -24,19 +28,25 @@ export const authGuard = async (
       return;
     }
 
+    console.log('✅ AuthGuard: Token found, length:', token.length);
+
     // Verify token
     const decoded = verifyToken(token);
+    console.log('✅ AuthGuard: Token decoded successfully:', { userId: decoded.userId, email: decoded.email });
     
     // Get user from database
     const user = await authService.validateUserSession(decoded.userId);
     
     if (!user) {
+      console.log('❌ AuthGuard: User not found in validateUserSession');
       res.status(401).json({
         success: false,
         message: 'Access denied. User not found.',
       });
       return;
     }
+
+    console.log('✅ AuthGuard: User validated successfully:', { id: user.id, email: user.email });
 
     // Attach user to request
     req.user = user;

@@ -85,7 +85,7 @@ router.get('/google', passport.authenticate('google', {
  */
 router.get('/google/callback', 
   passport.authenticate('google', {
-    failureRedirect: process.env.CLIENT_URL || 'http://localhost:5173',
+    failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5174'}?error=oauth_failed`,
     session: false,
   }),
   handleGoogleCallback

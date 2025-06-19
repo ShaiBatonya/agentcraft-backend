@@ -15,10 +15,12 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: env.CLIENT_URL,
-  credentials: true, // Allow cookies
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'], // Allow both ports during development
+  credentials: true, // Allow cookies and credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200, // Support legacy browsers
 }));
 
 // Body parsing middleware

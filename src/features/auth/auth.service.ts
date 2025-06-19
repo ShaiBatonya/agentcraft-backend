@@ -110,10 +110,11 @@ export class AuthService {
     
     return {
       httpOnly: true,
-      secure: isProduction, // Only secure in production
-      sameSite: isProduction ? 'none' : 'lax',
+      secure: false, // Always false for localhost development
+      sameSite: 'lax', // Use 'lax' for localhost cross-port communication
       maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
       path: '/',
+      // Explicitly set domain for localhost (don't specify domain to allow cross-port)
     };
   }
 

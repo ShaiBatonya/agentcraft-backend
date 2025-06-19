@@ -50,8 +50,9 @@ const envSchema = z.object({
   // Client Configuration
   CLIENT_URL: z
     .string()
-    .url('CLIENT_URL must be a valid URL')
-    .default('http://localhost:5173'),
+    .url()
+    .describe('Frontend application URL for CORS')
+    .default('http://localhost:5174'),
   
   // Database Configuration
   MONGODB_URI: z
