@@ -29,6 +29,7 @@ export interface CookieOptions {
   sameSite: 'strict' | 'lax' | 'none';
   maxAge: number;
   path: string;
+  domain?: string;
 }
 
 export interface AuthResponse {

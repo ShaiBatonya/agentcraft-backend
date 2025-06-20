@@ -107,14 +107,15 @@ export class AuthService {
    */
   getCookieOptions(): CookieOptions {
     const isProduction = env.NODE_ENV === 'production';
+    const clientUrl = new URL(env.CLIENT_URL);
     
     return {
       httpOnly: true,
-      secure: false, // Always false for localhost development
-      sameSite: 'lax', // Use 'lax' for localhost cross-port communication
+      secure: isProduction, // Only true in production
+      sameSite: isProduction ? 'strict' : 'lax', // Strict in prod, lax in dev
       maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
       path: '/',
-      // Explicitly set domain for localhost (don't specify domain to allow cross-port)
+      domain: isProduction ? clientUrl.hostname : undefined // Only set in production
     };
   }
 
