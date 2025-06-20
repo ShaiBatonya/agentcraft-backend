@@ -14,7 +14,8 @@ import {
   createThread,
   getThreads,
   sendMessage,
-  getMessages
+  getMessages,
+  deleteThread
 } from '../controllers/chat.controller.js';
 
 const router = Router();
@@ -587,6 +588,34 @@ router.post('/:threadId/message', authGuard, sendMessage);
  *         description: Thread not found or access denied
  */
 router.get('/:threadId/messages', authGuard, getMessages);
+
+/**
+ * @openapi
+ * /api/chat/thread/{threadId}:
+ *   delete:
+ *     tags:
+ *       - Chat Threads
+ *     summary: Delete a chat thread
+ *     description: Deletes a chat thread and all its messages for the authenticated user
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to delete
+ *     responses:
+ *       200:
+ *         description: Thread deleted successfully
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+router.delete('/thread/:threadId', authGuard, deleteThread);
 
 // ==========================================
 // ERROR HANDLING MIDDLEWARE

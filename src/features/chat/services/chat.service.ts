@@ -415,6 +415,43 @@ export class ChatService {
     }
   }
 
+  /**
+   * Delete a thread and all its messages
+   */
+  async deleteThread(userId: string, threadId: string): Promise<void> {
+    try {
+      // Validate IDs
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+      if (!Types.ObjectId.isValid(threadId)) {
+        throw new Error('Invalid thread ID');
+      }
+
+      // Verify thread belongs to user
+      const thread = await ChatThread.findOne({ 
+        _id: new Types.ObjectId(threadId), 
+        userId: new Types.ObjectId(userId) 
+      });
+
+      if (!thread) {
+        throw new Error('Thread not found or access denied');
+      }
+
+      // Delete all messages in the thread first
+      await ChatMessage.deleteMany({ threadId: new Types.ObjectId(threadId) });
+
+      // Delete the thread
+      await ChatThread.findByIdAndDelete(threadId);
+
+      console.log(`✅ Thread and messages deleted - User: ${userId}, Thread: ${threadId}`);
+
+    } catch (error) {
+      console.error('Delete thread error:', error);
+      throw error instanceof Error ? error : new Error('Failed to delete thread');
+    }
+  }
+
   // Private helper methods
 
   /**

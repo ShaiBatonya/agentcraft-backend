@@ -843,7 +843,10 @@ export async function createThread(req: Request, res: Response, next: NextFuncti
     
     res.status(201).json({
       success: true,
-      thread,
+      _id: thread._id,
+      title: thread.title,
+      createdAt: thread.createdAt,
+      updatedAt: thread.updatedAt,
     });
 
   } catch (error) {
@@ -911,10 +914,7 @@ export async function getThreads(req: Request, res: Response, next: NextFunction
     
     console.log(`✅ Threads retrieved - User: ${user.id}, Count: ${threads.length}`);
     
-    res.status(200).json({
-      success: true,
-      threads,
-    });
+    res.status(200).json(threads);
 
   } catch (error) {
     console.error('❌ Get threads error:', error);
@@ -1142,13 +1142,100 @@ export async function getMessages(req: Request, res: Response, next: NextFunctio
     
     console.log(`✅ Messages retrieved - User: ${user.id}, Thread: ${threadId}, Count: ${messages.length}`);
     
-    res.status(200).json({
-      success: true,
-      messages,
-    });
+    res.status(200).json(messages);
 
   } catch (error) {
     console.error('❌ Get messages error:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || error.message.includes('access denied')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: 'Thread not found or access denied',
+          code: ChatErrorCodes.NOT_FOUND,
+        };
+        res.status(404).json(errorResponse);
+        return;
+      }
+      
+      if (error.message.includes('Invalid')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: error.message,
+          code: ChatErrorCodes.VALIDATION_ERROR,
+        };
+        res.status(400).json(errorResponse);
+        return;
+      }
+    }
+    
+    next(error);
+  }
+}
+
+/**
+ * @swagger
+ * /api/chat/thread/{threadId}:
+ *   delete:
+ *     tags: [Chat Threads]
+ *     summary: Delete a chat thread
+ *     description: Deletes a chat thread and all its messages for the authenticated user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to delete
+ *     responses:
+ *       200:
+ *         description: Thread deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Thread deleted successfully"
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+export async function deleteThread(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    const { threadId } = req.params;
+
+    // Delete thread using service
+    await chatService.deleteThread(user.id, threadId);
+    
+    console.log(`✅ Thread deleted - User: ${user.id}, Thread: ${threadId}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Thread deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('❌ Delete thread error:', error);
     
     if (error instanceof Error) {
       if (error.message.includes('not found') || error.message.includes('access denied')) {
