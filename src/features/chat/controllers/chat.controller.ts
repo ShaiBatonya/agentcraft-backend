@@ -764,4 +764,414 @@ export async function getChatAnalytics(req: Request, res: Response, next: NextFu
     console.error('❌ Get analytics error:', error);
     next(error);
   }
+}
+
+// ==========================================
+// THREAD PERSISTENCE ENDPOINTS
+// ==========================================
+
+/**
+ * @swagger
+ * /api/chat/thread:
+ *   post:
+ *     tags: [Chat Threads]
+ *     summary: Create a new chat thread
+ *     description: Creates a new chat thread for the authenticated user
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Optional title for the thread
+ *                 example: "My Chat Thread"
+ *     responses:
+ *       201:
+ *         description: Thread created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 thread:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     userId:
+ *                       type: string
+ *                     title:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Authentication required
+ */
+export async function createThread(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    // Extract title from request body
+    const { title } = req.body;
+    
+    // Create thread using service
+    const thread = await chatService.createThread(user.id, { title });
+    
+    console.log(`✅ Thread created - User: ${user.id}, Thread: ${thread._id}`);
+    
+    res.status(201).json({
+      success: true,
+      thread,
+    });
+
+  } catch (error) {
+    console.error('❌ Create thread error:', error);
+    next(error);
+  }
+}
+
+/**
+ * @swagger
+ * /api/chat/threads:
+ *   get:
+ *     tags: [Chat Threads]
+ *     summary: Get all threads for authenticated user
+ *     description: Retrieves all chat threads for the authenticated user, sorted by most recent
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Threads retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 threads:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       userId:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Authentication required
+ */
+export async function getThreads(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    // Get threads using service
+    const threads = await chatService.getUserThreads(user.id);
+    
+    console.log(`✅ Threads retrieved - User: ${user.id}, Count: ${threads.length}`);
+    
+    res.status(200).json({
+      success: true,
+      threads,
+    });
+
+  } catch (error) {
+    console.error('❌ Get threads error:', error);
+    next(error);
+  }
+}
+
+/**
+ * @swagger
+ * /api/chat/{threadId}/message:
+ *   post:
+ *     tags: [Chat Messages]
+ *     summary: Send a message to a chat thread
+ *     description: Sends a user message to a thread, gets AI response, and saves both messages
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to send the message to
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: The message content
+ *                 example: "Hello, how are you?"
+ *     responses:
+ *       200:
+ *         description: Messages sent and received successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 messages:
+ *                   type: object
+ *                   properties:
+ *                     userMessage:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         threadId:
+ *                           type: string
+ *                         role:
+ *                           type: string
+ *                           example: "user"
+ *                         content:
+ *                           type: string
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                     assistantMessage:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         threadId:
+ *                           type: string
+ *                         role:
+ *                           type: string
+ *                           example: "assistant"
+ *                         content:
+ *                           type: string
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *       400:
+ *         description: Invalid request data
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+export async function sendMessage(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    const { threadId } = req.params;
+    const { content } = req.body;
+
+    // Validate input
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: 'Message content is required',
+        code: ChatErrorCodes.VALIDATION_ERROR,
+      };
+      res.status(400).json(errorResponse);
+      return;
+    }
+
+    // Send message using service
+    const messages = await chatService.sendMessageToThread(user.id, threadId, { content });
+    
+    console.log(`✅ Message sent - User: ${user.id}, Thread: ${threadId}`);
+    
+    res.status(200).json({
+      success: true,
+      messages,
+    });
+
+  } catch (error) {
+    console.error('❌ Send message error:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || error.message.includes('access denied')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: 'Thread not found or access denied',
+          code: ChatErrorCodes.NOT_FOUND,
+        };
+        res.status(404).json(errorResponse);
+        return;
+      }
+      
+      if (error.message.includes('Invalid')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: error.message,
+          code: ChatErrorCodes.VALIDATION_ERROR,
+        };
+        res.status(400).json(errorResponse);
+        return;
+      }
+    }
+    
+    next(error);
+  }
+}
+
+/**
+ * @swagger
+ * /api/chat/{threadId}/messages:
+ *   get:
+ *     tags: [Chat Messages]
+ *     summary: Get all messages in a thread
+ *     description: Retrieves all messages in a chat thread for the authenticated user
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to get messages from
+ *     responses:
+ *       200:
+ *         description: Messages retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       threadId:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *                         enum: [user, assistant]
+ *                       content:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+export async function getMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    
+    if (!user) {
+      const errorResponse: ChatApiErrorResponse = {
+        success: false,
+        error: CHAT_ERROR_MESSAGES[ChatErrorCodes.UNAUTHORIZED],
+        code: ChatErrorCodes.UNAUTHORIZED,
+      };
+      res.status(401).json(errorResponse);
+      return;
+    }
+
+    const { threadId } = req.params;
+
+    // Get messages using service
+    const messages = await chatService.getThreadMessages(user.id, threadId);
+    
+    console.log(`✅ Messages retrieved - User: ${user.id}, Thread: ${threadId}, Count: ${messages.length}`);
+    
+    res.status(200).json({
+      success: true,
+      messages,
+    });
+
+  } catch (error) {
+    console.error('❌ Get messages error:', error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes('not found') || error.message.includes('access denied')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: 'Thread not found or access denied',
+          code: ChatErrorCodes.NOT_FOUND,
+        };
+        res.status(404).json(errorResponse);
+        return;
+      }
+      
+      if (error.message.includes('Invalid')) {
+        const errorResponse: ChatApiErrorResponse = {
+          success: false,
+          error: error.message,
+          code: ChatErrorCodes.VALIDATION_ERROR,
+        };
+        res.status(400).json(errorResponse);
+        return;
+      }
+    }
+    
+    next(error);
+  }
 } 

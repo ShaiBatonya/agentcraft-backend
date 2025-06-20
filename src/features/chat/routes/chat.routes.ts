@@ -10,7 +10,11 @@ import {
   chatHealthCheck,
   getAvailableModels,
   getChatAnalytics,
-  getChatHistory
+  getChatHistory,
+  createThread,
+  getThreads,
+  sendMessage,
+  getMessages
 } from '../controllers/chat.controller.js';
 
 const router = Router();
@@ -460,7 +464,129 @@ router.get('/models', adminGuard, getAvailableModels);
  */
 router.get('/analytics', adminGuard, getChatAnalytics);
 
+// ==========================================
+// THREAD PERSISTENCE ENDPOINTS
+// ==========================================
 
+/**
+ * @openapi
+ * /api/chat/thread:
+ *   post:
+ *     tags:
+ *       - Chat Threads
+ *     summary: Create a new chat thread
+ *     description: Creates a new chat thread for the authenticated user
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Optional title for the thread
+ *                 example: "My Chat Thread"
+ *     responses:
+ *       201:
+ *         description: Thread created successfully
+ *       401:
+ *         description: Authentication required
+ */
+router.post('/thread', authGuard, createThread);
+
+/**
+ * @openapi
+ * /api/chat/threads:
+ *   get:
+ *     tags:
+ *       - Chat Threads
+ *     summary: Get all threads for authenticated user
+ *     description: Retrieves all chat threads for the authenticated user, sorted by most recent
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Threads retrieved successfully
+ *       401:
+ *         description: Authentication required
+ */
+router.get('/threads', authGuard, getThreads);
+
+/**
+ * @openapi
+ * /api/chat/{threadId}/message:
+ *   post:
+ *     tags:
+ *       - Chat Messages
+ *     summary: Send a message to a chat thread
+ *     description: Sends a user message to a thread, gets AI response, and saves both messages
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to send the message to
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: The message content
+ *                 example: "Hello, how are you?"
+ *     responses:
+ *       200:
+ *         description: Messages sent and received successfully
+ *       400:
+ *         description: Invalid request data
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+router.post('/:threadId/message', authGuard, sendMessage);
+
+/**
+ * @openapi
+ * /api/chat/{threadId}/messages:
+ *   get:
+ *     tags:
+ *       - Chat Messages
+ *     summary: Get all messages in a thread
+ *     description: Retrieves all messages in a chat thread for the authenticated user
+ *     security:
+ *       - CookieAuth: []
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: threadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The thread ID to get messages from
+ *     responses:
+ *       200:
+ *         description: Messages retrieved successfully
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Thread not found or access denied
+ */
+router.get('/:threadId/messages', authGuard, getMessages);
 
 // ==========================================
 // ERROR HANDLING MIDDLEWARE

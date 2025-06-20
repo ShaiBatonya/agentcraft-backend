@@ -9,6 +9,9 @@ import {
   GeminiError,
   geminiService 
 } from './gemini.service.js';
+import { ChatThread, ChatThreadType } from '../../../models/ChatThread.js';
+import { ChatMessage, ChatMessageType } from '../../../models/ChatMessage.js';
+import { Types } from 'mongoose';
 
 // Updated interfaces for Gemini
 export interface ChatServiceResponse {
@@ -39,6 +42,40 @@ export interface ChatHealthResponse {
   last_check: string;
   response_time?: number;
   error?: string;
+}
+
+// Thread persistence interfaces
+export interface CreateThreadRequest {
+  title?: string;
+}
+
+export interface CreateThreadResponse {
+  _id: string;
+  userId: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SendMessageRequest {
+  content: string;
+}
+
+export interface SendMessageResponse {
+  userMessage: {
+    _id: string;
+    threadId: string;
+    role: 'user';
+    content: string;
+    createdAt: Date;
+  };
+  assistantMessage: {
+    _id: string;
+    threadId: string;
+    role: 'assistant';
+    content: string;
+    createdAt: Date;
+  };
 }
 
 // Default chat configuration for Gemini
@@ -175,6 +212,207 @@ export class ChatService {
         description: 'Production-ready Gemini model for general use'
       }
     ];
+  }
+
+  // ==========================================
+  // THREAD PERSISTENCE METHODS
+  // ==========================================
+
+  /**
+   * Create a new chat thread for a user
+   */
+  async createThread(userId: string, request: CreateThreadRequest): Promise<CreateThreadResponse> {
+    try {
+      // Validate user ID
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Create new thread
+      const thread = new ChatThread({
+        userId: new Types.ObjectId(userId),
+        title: request.title || 'New Chat',
+      });
+
+      const savedThread = await thread.save();
+
+      return {
+        _id: savedThread._id.toString(),
+        userId: savedThread.userId.toString(),
+        title: savedThread.title,
+        createdAt: savedThread.createdAt,
+        updatedAt: savedThread.updatedAt,
+      };
+
+    } catch (error) {
+      console.error('Create thread error:', error);
+      throw error instanceof Error ? error : new Error('Failed to create thread');
+    }
+  }
+
+  /**
+   * Get all threads for a user
+   */
+  async getUserThreads(userId: string): Promise<CreateThreadResponse[]> {
+    try {
+      // Validate user ID
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+
+      // Fetch threads sorted by updatedAt DESC
+      const threads = await ChatThread.find({ userId: new Types.ObjectId(userId) })
+        .sort({ updatedAt: -1 })
+        .lean();
+
+      return threads.map(thread => ({
+        _id: (thread._id as Types.ObjectId).toString(),
+        userId: (thread.userId as Types.ObjectId).toString(),
+        title: thread.title,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+      }));
+
+    } catch (error) {
+      console.error('Get user threads error:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch threads');
+    }
+  }
+
+  /**
+   * Send a message to a thread and get AI response
+   */
+  async sendMessageToThread(
+    userId: string, 
+    threadId: string, 
+    request: SendMessageRequest
+  ): Promise<SendMessageResponse> {
+    try {
+      // Validate IDs
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+      if (!Types.ObjectId.isValid(threadId)) {
+        throw new Error('Invalid thread ID');
+      }
+
+      // Verify thread belongs to user
+      const thread = await ChatThread.findOne({ 
+        _id: new Types.ObjectId(threadId), 
+        userId: new Types.ObjectId(userId) 
+      });
+
+      if (!thread) {
+        throw new Error('Thread not found or access denied');
+      }
+
+      // Get previous messages for context (last 10 messages)
+      const previousMessages = await ChatMessage.find({ threadId: new Types.ObjectId(threadId) })
+        .sort({ createdAt: 1 })
+        .limit(10)
+        .lean();
+
+      // Build context for AI
+      const context = previousMessages.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      }));
+
+      // Save user message
+      const userMessage = new ChatMessage({
+        threadId: new Types.ObjectId(threadId),
+        role: 'user',
+        content: request.content.trim(),
+      });
+
+      const savedUserMessage = await userMessage.save();
+
+      // Get AI response
+      const aiResponse = await this.getChatResponse(request.content, userId, context);
+
+      // Save assistant message
+      const assistantMessage = new ChatMessage({
+        threadId: new Types.ObjectId(threadId),
+        role: 'assistant',
+        content: aiResponse.answer,
+      });
+
+      const savedAssistantMessage = await assistantMessage.save();
+
+      // Update thread's updatedAt timestamp
+      await ChatThread.findByIdAndUpdate(threadId, { updatedAt: new Date() });
+
+      return {
+        userMessage: {
+          _id: savedUserMessage._id.toString(),
+          threadId: savedUserMessage.threadId.toString(),
+          role: 'user',
+          content: savedUserMessage.content,
+          createdAt: savedUserMessage.createdAt,
+        },
+        assistantMessage: {
+          _id: savedAssistantMessage._id.toString(),
+          threadId: savedAssistantMessage.threadId.toString(),
+          role: 'assistant',
+          content: savedAssistantMessage.content,
+          createdAt: savedAssistantMessage.createdAt,
+        },
+      };
+
+    } catch (error) {
+      console.error('Send message to thread error:', error);
+      throw error instanceof Error ? error : new Error('Failed to send message');
+    }
+  }
+
+  /**
+   * Get all messages in a thread
+   */
+  async getThreadMessages(userId: string, threadId: string): Promise<Array<{
+    _id: string;
+    threadId: string;
+    role: 'user' | 'assistant';
+    content: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>> {
+    try {
+      // Validate IDs
+      if (!Types.ObjectId.isValid(userId)) {
+        throw new Error('Invalid user ID');
+      }
+      if (!Types.ObjectId.isValid(threadId)) {
+        throw new Error('Invalid thread ID');
+      }
+
+      // Verify thread belongs to user
+      const thread = await ChatThread.findOne({ 
+        _id: new Types.ObjectId(threadId), 
+        userId: new Types.ObjectId(userId) 
+      });
+
+      if (!thread) {
+        throw new Error('Thread not found or access denied');
+      }
+
+      // Get all messages in the thread
+      const messages = await ChatMessage.find({ threadId: new Types.ObjectId(threadId) })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      return messages.map(msg => ({
+        _id: (msg._id as Types.ObjectId).toString(),
+        threadId: (msg.threadId as Types.ObjectId).toString(),
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        createdAt: msg.createdAt,
+        updatedAt: msg.updatedAt,
+      }));
+
+    } catch (error) {
+      console.error('Get thread messages error:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch messages');
+    }
   }
 
   // Private helper methods
