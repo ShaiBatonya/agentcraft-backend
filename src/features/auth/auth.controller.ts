@@ -37,8 +37,15 @@ export const handleGoogleCallback = async (
       secure: true, // Always use secure in production
       sameSite: 'none' as const, // Required for cross-site cookies
       path: '/',
+      domain: '.onrender.com', // Allow cookies across *.onrender.com subdomains
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
+
+    // Log cookie settings for debugging
+    console.log('🍪 Setting cookie with options:', {
+      ...cookieOptions,
+      token: `${token.substring(0, 10)}...`,
+    });
 
     // Set the cookie
     res.cookie('token', token, cookieOptions);
@@ -68,6 +75,10 @@ export const getCurrentUser = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Log available cookies for debugging
+    console.log('🔍 Available cookies:', req.cookies);
+    console.log('🔍 Auth header:', req.headers.authorization);
+
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -105,7 +116,7 @@ export const getCurrentUser = async (
 
     res.json({
       success: true,
-      data: authenticatedUser, // Use 'data' to match ApiResponse<User> format
+      data: authenticatedUser,
       message: 'User retrieved successfully',
       timestamp: new Date().toISOString(),
     });
@@ -126,12 +137,13 @@ export const logout = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Clear cookie
+    // Clear cookie with same options as when setting
     res.clearCookie('token', {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true,
+      sameSite: 'none',
       path: '/',
+      domain: '.onrender.com',
     });
 
     res.json({
@@ -158,5 +170,6 @@ export const authHealthCheck = async (
     success: true,
     message: 'Auth system is running',
     authenticated: !!req.user,
+    cookies: req.cookies,
   });
 }; 
