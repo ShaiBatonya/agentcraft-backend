@@ -37,7 +37,7 @@ export const handleGoogleCallback = async (
       secure: true, // Always use secure in production
       sameSite: 'none' as const, // Required for cross-site cookies
       path: '/',
-      domain: '.onrender.com', // Allow cookies across *.onrender.com subdomains
+      domain: env.NODE_ENV === 'production' ? '.onrender.com' : undefined, // Allow cookies across *.onrender.com subdomains in production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
@@ -45,10 +45,19 @@ export const handleGoogleCallback = async (
     console.log('🍪 Setting cookie with options:', {
       ...cookieOptions,
       token: `${token.substring(0, 10)}...`,
+      host: req.get('host'),
+      origin: req.get('origin'),
+      userAgent: req.get('user-agent')?.substring(0, 50) + '...'
     });
 
     // Set the cookie
     res.cookie('token', token, cookieOptions);
+    
+    // Also set CORS headers manually for cookie support
+    res.header('Access-Control-Allow-Credentials', 'true');
+    if (req.get('origin')) {
+      res.header('Access-Control-Allow-Origin', req.get('origin'));
+    }
 
     // Log success for debugging
     console.log('✅ OAuth Success:', {
@@ -143,7 +152,7 @@ export const logout = async (
       secure: true,
       sameSite: 'none',
       path: '/',
-      domain: '.onrender.com',
+      domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined,
     });
 
     res.json({

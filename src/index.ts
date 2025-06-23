@@ -23,14 +23,38 @@ const prodUrls = [
   env.CLIENT_URL
 ].filter(Boolean);
 
-// CORS configuration
+// CORS configuration with enhanced cross-origin cookie support
 app.use(cors({
-  origin: [...devUrls, ...prodUrls], // Allow both development and production URLs
-  credentials: true, // Allow cookies and credentials
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  exposedHeaders: ['Set-Cookie'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [...devUrls, ...prodUrls];
+    
+    // Allow any *.onrender.com subdomain in production
+    if (env.NODE_ENV === 'production' && origin.includes('.onrender.com')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'), false);
+  },
+  credentials: true, // Critical for cross-origin cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cookie', 
+    'Set-Cookie',
+    'Access-Control-Allow-Credentials',
+    'Access-Control-Allow-Origin'
+  ],
+  exposedHeaders: ['Set-Cookie', 'Authorization'],
   optionsSuccessStatus: 200, // Support legacy browsers
+  preflightContinue: false,
 }));
 
 // Body parsing middleware

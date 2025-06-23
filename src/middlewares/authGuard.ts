@@ -14,16 +14,26 @@ export const authGuard = async (
 ): Promise<void> => {
   try {
     console.log('🔍 AuthGuard: Checking authentication');
-    console.log('🔍 AuthGuard: Available cookies:', Object.keys(req.cookies || {}));
+    console.log('🔍 AuthGuard: Available cookies:', req.cookies);
+    console.log('🔍 AuthGuard: Raw cookie header:', req.headers.cookie);
+    console.log('🔍 AuthGuard: Request origin:', req.get('origin'));
+    console.log('🔍 AuthGuard: Request host:', req.get('host'));
+    console.log('🔍 AuthGuard: User-Agent:', req.get('user-agent')?.substring(0, 50) + '...');
     
     // Get token from cookie
     const token = req.cookies?.token;
 
     if (!token) {
       console.log('❌ AuthGuard: No token found in cookies');
+      console.log('❌ AuthGuard: All headers:', Object.keys(req.headers));
       res.status(401).json({
         success: false,
         message: 'Access denied. No authentication token provided.',
+        debug: {
+          cookiesReceived: Object.keys(req.cookies || {}),
+          origin: req.get('origin'),
+          host: req.get('host')
+        }
       });
       return;
     }
