@@ -15,34 +15,48 @@ export const handleGoogleCallback = async (
   try {
     // User should be attached by Passport
     if (!req.user) {
-      res.redirect(`${env.CLIENT_URL}/auth/callback?error=authentication_failed`);
+      console.error('❌ OAuth Callback: No user data from Passport');
+      res.redirect(`${env.CLIENT_URL}/oauth-debug?error=no_user_data`);
       return;
     }
 
     // Get full user data
     const user = await authService.findUserById(req.user.id);
     if (!user) {
-      res.redirect(`${env.CLIENT_URL}/auth/callback?error=user_not_found`);
+      console.error('❌ OAuth Callback: User not found in database');
+      res.redirect(`${env.CLIENT_URL}/oauth-debug?error=user_not_found`);
       return;
     }
 
     // Generate JWT token
     const token = authService.generateToken(user);
-    console.log('✅ OAuth Callback: Generated JWT token, length:', token.length);
-
-    // Set secure cookie
-    const cookieOptions = authService.getCookieOptions();
-    console.log('✅ OAuth Callback: Cookie options:', cookieOptions);
-    console.log('✅ OAuth Callback: Setting cookie for domain:', req.get('host'));
     
+    // Set cookie options based on environment
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true, // Always use secure in production
+      sameSite: 'none' as const, // Required for cross-site cookies
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
+
+    // Set the cookie
     res.cookie('token', token, cookieOptions);
 
-    console.log('✅ OAuth Callback: Redirecting to:', `${env.CLIENT_URL}/auth/callback`);
-    // Redirect to frontend auth callback page for proper handling
-    res.redirect(`${env.CLIENT_URL}/auth/callback`);
-  } catch (error) {
-    console.error('Google callback error:', error);
-    res.redirect(`${env.CLIENT_URL}/auth/callback?error=server_error`);
+    // Log success for debugging
+    console.log('✅ OAuth Success:', {
+      userId: user._id,
+      email: user.email,
+      cookieDomain: req.get('host'),
+      redirectTo: `${env.CLIENT_URL}/oauth-debug?token=${token}`
+    });
+
+    // Redirect to frontend with token (for debugging)
+    res.redirect(`${env.CLIENT_URL}/oauth-debug?token=${token}`);
+  } catch (error: any) {
+    console.error('❌ OAuth Callback Error:', error);
+    const errorMessage = error?.message || 'Unknown error';
+    res.redirect(`${env.CLIENT_URL}/oauth-debug?error=server_error&message=${encodeURIComponent(errorMessage)}`);
   }
 };
 
