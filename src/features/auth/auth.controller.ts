@@ -16,7 +16,7 @@ export const handleGoogleCallback = async (
     // User should be attached by Passport
     if (!req.user) {
       console.error('❌ OAuth Callback: No user data from Passport');
-      res.redirect(`${env.CLIENT_URL}/oauth-debug?error=no_user_data`);
+      res.redirect(`${env.CLIENT_URL}/auth/callback?error=no_user_data`);
       return;
     }
 
@@ -24,7 +24,7 @@ export const handleGoogleCallback = async (
     const user = await authService.findUserById(req.user.id);
     if (!user) {
       console.error('❌ OAuth Callback: User not found in database');
-      res.redirect(`${env.CLIENT_URL}/oauth-debug?error=user_not_found`);
+      res.redirect(`${env.CLIENT_URL}/auth/callback?error=user_not_found`);
       return;
     }
 
@@ -34,12 +34,13 @@ export const handleGoogleCallback = async (
     // Set cookie options based on environment
     // NOTE: onrender.com is on Public Suffix List - cannot use domain: '.onrender.com'
     // Must set cookies for individual service domains in production
+    const isProduction = env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: true, // Always use secure in production
-      sameSite: 'none' as const, // Required for cross-site cookies
+      secure: isProduction, // Only secure in production (HTTPS)
+      sameSite: isProduction ? 'none' as const : 'lax' as const, // 'none' for cross-site in production, 'lax' for development
       path: '/',
-      // No domain setting for production - let browser set it to current host
+      // No domain setting - let browser set it to current host (avoids PSL issues)
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
@@ -63,20 +64,21 @@ export const handleGoogleCallback = async (
       res.header('Access-Control-Allow-Origin', req.get('origin'));
     }
 
-    // Log success for debugging
+    // Log success for debugging (without exposing token)
     console.log('✅ OAuth Success:', {
       userId: user._id,
       email: user.email,
       cookieDomain: req.get('host'),
-      redirectTo: `${env.CLIENT_URL}/oauth-debug?token=${token}`
+      cookieSet: true,
+      redirectTo: `${env.CLIENT_URL}/auth/callback?success=true`
     });
 
-    // Redirect to frontend with token (for debugging)
-    res.redirect(`${env.CLIENT_URL}/oauth-debug?token=${token}`);
+    // Redirect to frontend callback page (token is securely stored in HttpOnly cookie)
+    res.redirect(`${env.CLIENT_URL}/auth/callback?success=true`);
   } catch (error: any) {
     console.error('❌ OAuth Callback Error:', error);
     const errorMessage = error?.message || 'Unknown error';
-    res.redirect(`${env.CLIENT_URL}/oauth-debug?error=server_error&message=${encodeURIComponent(errorMessage)}`);
+    res.redirect(`${env.CLIENT_URL}/auth/callback?error=server_error&message=${encodeURIComponent(errorMessage)}`);
   }
 };
 
@@ -151,20 +153,23 @@ export const logout = async (
 ): Promise<void> => {
   try {
     // Clear cookie with same options as when setting
+    const isProduction = env.NODE_ENV === 'production';
     res.clearCookie('token', {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
       // No domain setting - must match how cookie was originally set
     });
+
+    console.log('✅ Logout successful: Cookie cleared');
 
     res.json({
       success: true,
       message: 'Logged out successfully',
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error('❌ Logout error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
