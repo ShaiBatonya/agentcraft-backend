@@ -13,9 +13,19 @@ import { notFound } from './middlewares/notFound.js';
 
 const app = express();
 
+// Development URLs
+const devUrls = ['http://localhost:5173', 'http://localhost:5174'];
+
+// Production URLs
+const prodUrls = [
+  'https://agentcraft-client.onrender.com',
+  'https://agentcraft-client-1.onrender.com',
+  env.CLIENT_URL
+].filter(Boolean);
+
 // CORS configuration
 app.use(cors({
-  origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:5174'], // Allow both ports during development
+  origin: [...devUrls, ...prodUrls], // Allow both development and production URLs
   credentials: true, // Allow cookies and credentials
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -60,7 +70,7 @@ const start = async () => {
   await connectDB();
   app.listen(Number(env.PORT), () => {
     console.log(`🚀 Server running on port ${env.PORT}`);
-    console.log(`🔗 Client URL: ${env.CLIENT_URL}`);
+    console.log(`🔗 Client URLs:`, [...prodUrls]);
     console.log(`📚 API Docs: http://localhost:${env.PORT}/api/docs`);
     console.log(`🔐 Google OAuth: /api/auth/google`);
     console.log(`💬 Chat API: /api/chat`);
