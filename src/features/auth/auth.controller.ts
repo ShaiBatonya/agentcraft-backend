@@ -32,12 +32,14 @@ export const handleGoogleCallback = async (
     const token = authService.generateToken(user);
     
     // Set cookie options based on environment
+    // NOTE: onrender.com is on Public Suffix List - cannot use domain: '.onrender.com'
+    // Must set cookies for individual service domains in production
     const cookieOptions = {
       httpOnly: true,
       secure: true, // Always use secure in production
       sameSite: 'none' as const, // Required for cross-site cookies
       path: '/',
-      domain: env.NODE_ENV === 'production' ? '.onrender.com' : undefined, // Allow cookies across *.onrender.com subdomains in production
+      // No domain setting for production - let browser set it to current host
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     };
 
@@ -47,6 +49,8 @@ export const handleGoogleCallback = async (
       token: `${token.substring(0, 10)}...`,
       host: req.get('host'),
       origin: req.get('origin'),
+      referer: req.get('referer'),
+      forwardedHost: req.get('x-forwarded-host'),
       userAgent: req.get('user-agent')?.substring(0, 50) + '...'
     });
 
@@ -152,7 +156,7 @@ export const logout = async (
       secure: true,
       sameSite: 'none',
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined,
+      // No domain setting - must match how cookie was originally set
     });
 
     res.json({

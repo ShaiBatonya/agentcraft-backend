@@ -20,6 +20,7 @@ const devUrls = ['http://localhost:5173', 'http://localhost:5174'];
 const prodUrls = [
   'https://agentcraft-client.onrender.com',
   'https://agentcraft-client-1.onrender.com',
+  'https://agentcraft-frontend.onrender.com',
   env.CLIENT_URL
 ].filter(Boolean);
 
