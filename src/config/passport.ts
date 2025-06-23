@@ -26,9 +26,20 @@ passport.deserializeUser(async (id: string, done) => {
   }
 });
 
-// Construct the callback URL
-const serverUrl = `http://localhost:${env.PORT}`;
-const callbackUrl = `${serverUrl}/api/auth/google/callback`;
+// Construct the callback URL based on environment
+const getCallbackUrl = () => {
+  if (env.NODE_ENV === 'production') {
+    // In production, use the deployed backend URL
+    return 'https://agentcraft-backend-1.onrender.com/api/auth/google/callback';
+  } else {
+    // In development, use localhost
+    return `http://localhost:${env.PORT}/api/auth/google/callback`;
+  }
+};
+
+const callbackUrl = getCallbackUrl();
+
+console.log(`🔗 OAuth Callback URL: ${callbackUrl}`);
 
 // Google OAuth Strategy
 passport.use(
