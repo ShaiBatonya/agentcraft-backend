@@ -78,6 +78,21 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   },
 }));
 
+// Root endpoint
+app.get('/', function(_req, res) {
+  res.json({ 
+    message: 'AgentCraft backend is running ✅',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: {
+      api: '/api',
+      docs: '/api/docs',
+      health: '/health',
+      auth: '/api/auth/google'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', function(_req, res) {
   res.json({ status: 'ok' });
