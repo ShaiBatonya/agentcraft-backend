@@ -1,15 +1,15 @@
 // Main entry point for the Express app. Sets up middleware, connects to MongoDB, and loads feature routes.
-import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { connectDB } from './config/db.js';
-import { env } from './config/validateEnv.js';
 import passport from './config/passport.js';
 import { swaggerSpec } from './config/swagger.js';
-import apiRouter from './routes/index.js';
+import { env } from './config/validateEnv.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { notFound } from './middlewares/notFound.js';
+import apiRouter from './routes/index.js';
 
 const app = express();
 
@@ -93,9 +93,17 @@ app.get('/', function(_req, res) {
   });
 });
 
-// Health check endpoint
-app.get('/health', function(_req, res) {
-  res.json({ status: 'ok' });
+// Health check endpoint for uptime monitoring
+// This lightweight endpoint is used by UptimeRobot to keep the Render instance active
+app.get('/health', (_req: express.Request, res: express.Response) => {
+  const healthcheck = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: env.NODE_ENV
+  };
+  
+  res.status(200).json(healthcheck);
 });
 
 // Central API router (includes all feature routes)
